@@ -90,72 +90,47 @@ function buildContactEmail({
   firstName, company, session, profile,
 }: { firstName: string; company: string; session: Session; profile: { title: string; hook: string } }) {
   const intro = session.mode === "reseautage"
-    ? `Suite à notre échange lors de <strong>${session.eventDescription}</strong> (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
+    ? `Suite à notre échange lors de l'évènement <strong>${session.eventDescription}</strong> (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
     : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
 
   return `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#ffffff;">
+<div style="max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;font-size:15px;line-height:1.7;">
 
-  <!-- Header -->
-  <tr>
-    <td style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:44px 40px;text-align:center;">
-      <div style="width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:14px;margin:0 auto 16px;font-size:26px;font-weight:900;color:#fff;line-height:64px;text-align:center;">JR</div>
-      <h1 style="color:#fff;margin:0 0 6px;font-size:24px;font-weight:800;">Ravi d'avoir discuté avec vous !</h1>
-      <p style="color:rgba(255,255,255,0.7);margin:0;font-size:13px;">${profile.title}</p>
-      ${session.mode === "reseautage" ? `<p style="color:rgba(255,255,255,0.5);margin:6px 0 0;font-size:12px;">📍 ${session.eventDescription} · ${session.eventDate}</p>` : ""}
-    </td>
-  </tr>
+  <p>Bonjour ${firstName},</p>
 
-  <!-- Body -->
-  <tr><td style="padding:36px 40px;">
-    <p style="color:#374151;font-size:16px;line-height:1.7;margin:0 0 14px;">Bonjour <strong>${firstName}</strong>,</p>
-    <p style="color:#374151;font-size:16px;line-height:1.7;margin:0 0 14px;">C'est Jaona. ${intro}</p>
-    <p style="color:#374151;font-size:16px;line-height:1.7;margin:0 0 28px;">
-      Ma spécialité : <strong>${profile.hook}</strong>.
-      Je serais ravi d'explorer comment cela peut apporter de la valeur chez <strong>${company}</strong>.
-    </p>
+  <p>C'est Jaona. ${intro}</p>
 
-    <!-- Bouton CV -->
-    <table width="100%" cellpadding="0" cellspacing="0">
-      <tr><td align="center" style="padding-bottom:28px;">
-        <a href="${session.cvUrl}" style="display:inline-block;background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;text-decoration:none;padding:14px 44px;border-radius:12px;font-weight:700;font-size:15px;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
-          ⬇️ Télécharger mon CV
-        </a>
-      </td></tr>
-    </table>
+  <p>
+    Ma spécialité : <strong>${profile.hook}</strong>.
+    Je serais ravi d'explorer comment cela peut apporter de la valeur chez <strong>${company}</strong>.
+  </p>
 
-    <!-- Coordonnées -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;margin-bottom:24px;">
-      <tr><td style="padding:18px 22px;">
-        <p style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 10px;">Mes coordonnées</p>
-        <p style="color:#374151;font-size:13px;margin:5px 0;">📧 <a href="mailto:${GMAIL_USER}" style="color:#2563eb;text-decoration:none;">${GMAIL_USER}</a></p>
-        <p style="color:#374151;font-size:13px;margin:5px 0;">💼 <a href="${LINKEDIN_URL}" style="color:#2563eb;text-decoration:none;">Mon profil LinkedIn</a></p>
-        <p style="color:#374151;font-size:13px;margin:5px 0;">🐙 <a href="https://github.com/BONAVAMPIRA/CV_QRCode" style="color:#2563eb;text-decoration:none;">GitHub</a></p>
-      </td></tr>
-    </table>
+  <p>Vous pouvez télécharger mon CV ici : <a href="${session.cvUrl}" style="color:#2563eb;">${session.cvUrl}</a></p>
 
-    <p style="color:#374151;font-size:16px;line-height:1.7;margin:0 0 6px;">N'hésitez pas à me contacter. Au plaisir d'échanger !</p>
-    <p style="color:#374151;font-size:16px;font-weight:700;margin:0;">Jaona Andriantsimba RABAONARISON</p>
-  </td></tr>
+  <p>
+    N'hésitez pas à me recontacter directement :<br>
+    Email : <a href="mailto:${GMAIL_USER}" style="color:#2563eb;">${GMAIL_USER}</a><br>
+    LinkedIn : <a href="${LINKEDIN_URL}" style="color:#2563eb;">linkedin.com/in/jaona-andriantsimba</a>
+  </p>
 
-  <!-- Footer -->
-  <tr>
-    <td style="border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
-      <p style="color:#94a3b8;font-size:11px;margin:0;">
-        ${session.mode === "reseautage"
-          ? `Vous avez reçu cet email suite au scan du QR Code de Jaona (${session.eventDescription}).`
-          : `Vous avez reçu cet email suite à votre demande de CV auprès de Jaona.`}
-      </p>
-    </td>
-  </tr>
-</table>
-</td></tr>
-</table>
+  <p>Au plaisir d'échanger !</p>
+
+  <p>
+    Jaona Andriantsimba RABAONARISON<br>
+    <em>${profile.title}</em>
+  </p>
+
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+  <p style="font-size:11px;color:#9ca3af;">
+    ${session.mode === "reseautage"
+      ? `Vous avez reçu cet email suite au scan du QR Code de Jaona (${session.eventDescription}).`
+      : `Vous avez reçu cet email suite à votre demande de CV auprès de Jaona.`}
+  </p>
+
+</div>
 </body>
 </html>`;
 }
