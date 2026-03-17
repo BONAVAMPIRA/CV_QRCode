@@ -191,17 +191,17 @@ export default function ScanPage() {
                 {/* CTA */}
                 <div className="space-y-3">
                   <button
-                    onClick={() => { setPdfOpen(true); setIframeLoading(true); }}
-                    disabled={!session?.cvUrl}
-                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 active:scale-95 text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-blue-500/25 disabled:opacity-40 flex items-center justify-center gap-2"
-                  >
-                    <span>👁️</span> Visionner mon CV
-                  </button>
-                  <button
                     onClick={() => setMainState("form")}
-                    className="w-full py-4 bg-white/8 hover:bg-white/15 active:scale-95 text-white rounded-2xl font-bold text-base transition-all border border-white/20 flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 active:scale-95 text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
                   >
                     <span>📧</span> Recevoir par email
+                  </button>
+                  <button
+                    onClick={() => { setPdfOpen(true); setIframeLoading(true); }}
+                    disabled={!session?.cvUrl}
+                    className="w-full py-4 bg-white/8 hover:bg-white/15 active:scale-95 text-white rounded-2xl font-bold text-base transition-all border border-white/20 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    <span>👁️</span> Visionner mon CV
                   </button>
                 </div>
               </div>
