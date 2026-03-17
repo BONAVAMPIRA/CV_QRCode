@@ -10,8 +10,8 @@ const LINKEDIN_URL = "https://www.linkedin.com/in/jaona-andriantsimba-rabaonaris
 // ── Profils dynamiques (même mapping que la page scan) ───────────────────────
 const CV_PROFILES: Record<string, { title: string; hook: string }> = {
   bi:   { title: "Business Intelligence Analyst",           hook: "transformer les données en décisions claires" },
-  ba:   { title: "Business Analyst",                        hook: "traduire les besoins d'affaires en solutions concrètes" },
-  babi: { title: "Analyste BI & Analyste d'Affaires — Profil hybride", hook: "faire le pont entre la donnée et la stratégie, en proposant des solutions technologiques adaptés" },
+  ba:   { title: "Business Analyst",                        hook: "traduire les besoins d'affaires en solutions technologiques concrètes" },
+  babi: { title: "Analyste BI & Analyste d'Affaires — Profil hybride", hook: "faire le pont entre la stratégie et les données, en proposant des solutions technologiques adaptés" },
 };
 const DEFAULT_PROFILE = { title: "Analyste BI & Analyste d'Affaires", hook: "accompagner vos projets avec rigueur et agilité" };
 
@@ -78,7 +78,7 @@ function buildContactEmail({
   firstName, company, session, profile,
 }: { firstName: string; company: string; session: Session; profile: { title: string; hook: string } }) {
   const intro = session.mode === "reseautage"
-    ? `Suite à notre échange lors de l'évènement <strong>${session.eventDescription}</strong> du (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
+    ? `Suite à notre échange lors de l'évènement <strong>${session.eventDescription}</strong> (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
     : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
 
   return `<!DOCTYPE html>
