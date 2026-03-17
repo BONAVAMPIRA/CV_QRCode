@@ -1,19 +1,19 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 
-const FROM_ADDRESS = "Jaona Rabaonarison <onboarding@resend.dev>";
-// Une fois ton domaine vérifié sur resend.com → "Jaona <hello@tondomaine.com>"
+const GMAIL_USER = process.env.GMAIL_USER || "jrabaona@gmail.com";
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/jaona-andriantsimba-rabaonarison-48b773219/";
 
 // ── Profils dynamiques (même mapping que la page scan) ───────────────────────
 const CV_PROFILES: Record<string, { title: string; hook: string }> = {
   bi:   { title: "Business Intelligence Analyst",           hook: "transformer les données en décisions claires" },
-  ba:   { title: "Business Analyst",                        hook: "traduire les besoins d'affaires en solutions technologiques concrètes" },
-  babi: { title: "Analyste BI & Analyste d'Affaires — Profil hybride", hook: "faire le pont entre la stratégie et les données, en proposant des solutions technologiques adaptés" },
+  ba:   { title: "Business Analyst",                        hook: "traduire les besoins d'affaires en solutions concrètes" },
+  babi: { title: "Analyste BI & Affaires — Profil hybride", hook: "faire le pont entre la donnée et la stratégie" },
 };
-const DEFAULT_PROFILE = { title: "Analyste BI & Analyste d'Affaires", hook: "accompagner vos projets avec rigueur et agilité" };
+const DEFAULT_PROFILE = { title: "Analyste BI & Affaires", hook: "accompagner vos projets avec rigueur et agilité" };
 
 interface Session {
   mode: "simple" | "reseautage";
@@ -23,8 +23,18 @@ interface Session {
   eventDate: string;
 }
 
+// ── Créer le transporteur Gmail ──────────────────────────────────────────────
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     const { name, company, email } = await req.json();
 
@@ -47,9 +57,11 @@ export async function POST(req: NextRequest) {
     const firstName = name.split(" ")[0];
     const profile = CV_PROFILES[session.cvType] ?? DEFAULT_PROFILE;
 
+    const transporter = createTransporter();
+
     // ── 2. Email au contact (personnalisé selon mode + cvType) ───────────────
-    await resend.emails.send({
-      from:    FROM_ADDRESS,
+    await transporter.sendMail({
+      from:    `Jaona Rabaonarison <${GMAIL_USER}>`,
       to:      email,
       subject: session.mode === "reseautage"
         ? `Mon CV — Suite à notre rencontre (${session.eventDescription})`
@@ -58,9 +70,9 @@ export async function POST(req: NextRequest) {
     });
 
     // ── 3. Notification à Jaona ──────────────────────────────────────────────
-    await resend.emails.send({
-      from:    FROM_ADDRESS,
-      to:      process.env.MY_EMAIL || "jrabaona@gmail.com",
+    await transporter.sendMail({
+      from:    `CV QR Code <${GMAIL_USER}>`,
+      to:      GMAIL_USER,
       subject: `🤝 Nouveau contact : ${name} (${company})`,
       html:    buildNotificationEmail({ name, company, email, session }),
     });
@@ -78,7 +90,7 @@ function buildContactEmail({
   firstName, company, session, profile,
 }: { firstName: string; company: string; session: Session; profile: { title: string; hook: string } }) {
   const intro = session.mode === "reseautage"
-    ? `Suite à notre échange lors de l'évènement <strong>${session.eventDescription}</strong> (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
+    ? `Suite à notre échange lors de <strong>${session.eventDescription}</strong> (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
     : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
 
   return `<!DOCTYPE html>
@@ -121,8 +133,9 @@ function buildContactEmail({
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;margin-bottom:24px;">
       <tr><td style="padding:18px 22px;">
         <p style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 10px;">Mes coordonnées</p>
-        <p style="color:#374151;font-size:13px;margin:5px 0;">📧 <a href="mailto:jrabaona@gmail.com" style="color:#2563eb;text-decoration:none;">jrabaona@gmail.com</a></p>
+        <p style="color:#374151;font-size:13px;margin:5px 0;">📧 <a href="mailto:${GMAIL_USER}" style="color:#2563eb;text-decoration:none;">${GMAIL_USER}</a></p>
         <p style="color:#374151;font-size:13px;margin:5px 0;">💼 <a href="${LINKEDIN_URL}" style="color:#2563eb;text-decoration:none;">Mon profil LinkedIn</a></p>
+        <p style="color:#374151;font-size:13px;margin:5px 0;">🐙 <a href="https://github.com/BONAVAMPIRA/CV_QRCode" style="color:#2563eb;text-decoration:none;">GitHub</a></p>
       </td></tr>
     </table>
 
@@ -135,7 +148,7 @@ function buildContactEmail({
     <td style="border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
       <p style="color:#94a3b8;font-size:11px;margin:0;">
         ${session.mode === "reseautage"
-          ? `Vous avez reçu cet email suite au scan du QR Code de Jaona à l'évènement : (${session.eventDescription}).`
+          ? `Vous avez reçu cet email suite au scan du QR Code de Jaona (${session.eventDescription}).`
           : `Vous avez reçu cet email suite à votre demande de CV auprès de Jaona.`}
       </p>
     </td>
