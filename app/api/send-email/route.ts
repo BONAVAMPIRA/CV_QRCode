@@ -60,12 +60,14 @@ export async function POST(req: NextRequest) {
     const transporter = createTransporter();
 
     // ── 2. Email au contact (personnalisé selon mode + cvType) ───────────────
+    const contactText = buildContactEmailText({ firstName, company, session, profile });
     await transporter.sendMail({
       from:    `Jaona Rabaonarison <${GMAIL_USER}>`,
       to:      email,
       subject: session.mode === "reseautage"
         ? `Mon CV — Suite à notre rencontre (${session.eventDescription})`
         : `Mon CV — Suite à notre rencontre`,
+      text: contactText,
       html: buildContactEmail({ firstName, company, session, profile }),
     });
 
@@ -82,6 +84,33 @@ export async function POST(req: NextRequest) {
     console.error("Erreur envoi email:", err);
     return NextResponse.json({ error: "Erreur : " + String(err) }, { status: 500 });
   }
+}
+
+// ─── Version texte brut → contact ────────────────────────────────────────────
+
+function buildContactEmailText({
+  firstName, company, session, profile,
+}: { firstName: string; company: string; session: Session; profile: { title: string; hook: string } }) {
+  const intro = session.mode === "reseautage"
+    ? `Suite à notre échange lors de l'évènement ${session.eventDescription} (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
+    : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
+
+  return `Bonjour ${firstName},
+
+C'est Jaona. ${intro}
+
+Ma spécialité : ${profile.hook}. Je serais ravi d'explorer comment cela peut apporter de la valeur chez ${company}.
+
+Télécharger mon CV : ${session.cvUrl}
+
+N'hésitez pas à me recontacter :
+Email : ${GMAIL_USER}
+LinkedIn : ${LINKEDIN_URL}
+
+Au plaisir d'échanger !
+
+Jaona Andriantsimba RABAONARISON
+${profile.title}`;
 }
 
 // ─── Template email → contact ────────────────────────────────────────────────
