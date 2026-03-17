@@ -59,7 +59,11 @@ export async function POST(req: NextRequest) {
 
     const transporter = createTransporter();
 
-    // ── 2. Email au contact (personnalisé selon mode + cvType) ───────────────
+    // ── 2. Télécharger le CV pour l'envoyer en pièce jointe ─────────────────
+    const cvRes = await fetch(session.cvUrl);
+    const cvBuffer = Buffer.from(await cvRes.arrayBuffer());
+
+    // ── 3. Email au contact (CV en pièce jointe) ─────────────────────────────
     const contactText = buildContactEmailText({ firstName, company, session, profile });
     await transporter.sendMail({
       from:    `Jaona Rabaonarison <${GMAIL_USER}>`,
@@ -68,7 +72,13 @@ export async function POST(req: NextRequest) {
         ? `Mon CV — Suite à notre rencontre (${session.eventDescription})`
         : `Mon CV — Suite à notre rencontre`,
       text: contactText,
-      html: buildContactEmail({ firstName, company, session, profile }),
+      attachments: [
+        {
+          filename: "CV-Jaona-Rabaonarison.pdf",
+          content:  cvBuffer,
+          contentType: "application/pdf",
+        },
+      ],
     });
 
     // ── 3. Notification à Jaona ──────────────────────────────────────────────
@@ -101,7 +111,7 @@ C'est Jaona. ${intro}
 
 Ma spécialité : ${profile.hook}. Je serais ravi d'explorer comment cela peut apporter de la valeur chez ${company}.
 
-Télécharger mon CV : ${session.cvUrl}
+Vous trouverez mon CV en pièce jointe.
 
 N'hésitez pas à me recontacter :
 Email : ${GMAIL_USER}
@@ -137,7 +147,7 @@ function buildContactEmail({
     Je serais ravi d'explorer comment cela peut apporter de la valeur chez <strong>${company}</strong>.
   </p>
 
-  <p>Vous pouvez télécharger mon CV ici : <a href="${session.cvUrl}" style="color:#2563eb;">${session.cvUrl}</a></p>
+  <p>Vous trouverez mon CV en <strong>pièce jointe</strong>.</p>
 
   <p>
     N'hésitez pas à me recontacter directement :<br>
