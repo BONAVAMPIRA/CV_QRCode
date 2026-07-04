@@ -2,27 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-
-type CVType = "babi" | "ba" | "bi";
-
-interface CVStatus {
-  babi: string | null;
-  ba:   string | null;
-  bi:   string | null;
-}
-
-const CV_INFO: Record<CVType, { label: string; desc: string; emoji: string }> = {
-  babi: { label: "CV BA · BI",            desc: "Profil hybride polyvalent",  emoji: "⚡" },
-  ba:   { label: "CV Business Analyst",   desc: "Centré analyse d'affaires",  emoji: "📊" },
-  bi:   { label: "CV Business Intelligence", desc: "Centré données & Power BI", emoji: "📈" },
-};
+import { CV_TYPES, emptyCVStatus } from "@/lib/cv-config";
 
 export default function AdminPage() {
   const [password, setPassword]         = useState("");
   const [authenticated, setAuthenticated] = useState(false);
-  const [cvStatus, setCvStatus]         = useState<CVStatus>({ babi: null, ba: null, bi: null });
-  const [uploading, setUploading]       = useState<CVType | null>(null);
-  const [messages, setMessages]         = useState<Record<CVType, string>>({ babi: "", ba: "", bi: "" });
+  const [cvStatus, setCvStatus]         = useState<Record<string, string | null>>(emptyCVStatus());
+  const [uploading, setUploading]       = useState<string | null>(null);
+  const [messages, setMessages]         = useState<Record<string, string>>({});
 
   const loadStatus = useCallback(async () => {
     try {
@@ -52,7 +39,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleUpload = async (type: CVType, file: File) => {
+  const handleUpload = async (type: string, file: File) => {
     if (!file) return;
     if (file.type !== "application/pdf") {
       setMessages((m) => ({ ...m, [type]: "❌ Fichier PDF uniquement" }));
@@ -121,7 +108,7 @@ export default function AdminPage() {
         >
           <h1 className="text-2xl font-bold text-white">⚙️ Mes CVs</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Uploade tes 3 versions de CV une seule fois
+            Uploade tes {CV_TYPES.length} versions de CV une seule fois
           </p>
         </motion.div>
 
@@ -131,9 +118,9 @@ export default function AdminPage() {
           de revenir ici sauf pour les mettre à jour.
         </div>
 
-        {/* 3 cartes CV */}
-        {(["babi", "ba", "bi"] as CVType[]).map((type, i) => {
-          const info      = CV_INFO[type];
+        {/* Une carte par CV (voir lib/cv-config.ts) */}
+        {CV_TYPES.map((info, i) => {
+          const type      = info.id;
           const url       = cvStatus[type];
           const isUploading = uploading === type;
           const msg       = messages[type];

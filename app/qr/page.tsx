@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
+import { getCV } from "@/lib/cv-config";
 
 interface Session {
   mode: "simple" | "reseautage";
@@ -46,11 +47,6 @@ export default function QRPage() {
     }
   }, []);
 
-  const cvLabels: Record<string, string> = {
-    babi: "CV BA · BI",
-    ba:   "CV Business Analyst",
-    bi:   "CV Business Intelligence",
-  };
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 relative">
@@ -94,7 +90,7 @@ export default function QRPage() {
             <p className="text-gray-400 text-sm">Rencontre simple</p>
           )}
           {session && (
-            <p className="text-gray-600 text-xs">{cvLabels[session.cvType] || session.cvType}</p>
+            <p className="text-gray-600 text-xs">{getCV(session.cvType)?.label ?? session.cvType}</p>
           )}
         </motion.div>
 

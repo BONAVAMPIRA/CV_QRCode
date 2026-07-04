@@ -3,27 +3,16 @@
 import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CV_TYPES } from "@/lib/cv-config";
 
-type CVType = "babi" | "ba" | "bi";
-
-interface CVStatus {
-  babi: string | null;
-  ba: string | null;
-  bi: string | null;
-}
-
-const CV_LABELS: Record<CVType, { label: string; desc: string; emoji: string }> = {
-  babi: { label: "BA · BI",    desc: "Profil hybride polyvalent", emoji: "⚡" },
-  ba:   { label: "BA",         desc: "Business Analyst",          emoji: "📊" },
-  bi:   { label: "BI",         desc: "Business Intelligence",     emoji: "📈" },
-};
+type CVStatus = Record<string, string | null>;
 
 function ConfigureForm() {
   const router      = useRouter();
   const params      = useSearchParams();
   const mode        = (params.get("mode") || "simple") as "simple" | "reseautage";
 
-  const [cvType, setCvType]                     = useState<CVType>("babi");
+  const [cvType, setCvType]                     = useState<string>(CV_TYPES[0].id);
   const [eventDescription, setEventDescription] = useState("");
   const [eventDate, setEventDate]               = useState(
     new Date().toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })
@@ -114,9 +103,9 @@ function ConfigureForm() {
             transition={{ delay: 0.1 }}
           >
             <p className="text-slate-300 text-sm font-medium mb-3">Quel CV envoyer ?</p>
-            <div className="grid grid-cols-3 gap-2">
-              {(["babi", "ba", "bi"] as CVType[]).map((type) => {
-                const info      = CV_LABELS[type];
+            <div className="grid grid-cols-2 gap-2">
+              {CV_TYPES.map((info) => {
+                const type      = info.id;
                 const available = cvStatus?.[type] != null;
                 const selected  = cvType === type;
                 return (
@@ -131,7 +120,7 @@ function ConfigureForm() {
                   >
                     <div className="text-xl mb-1">{info.emoji}</div>
                     <div className={`font-bold text-sm ${selected ? "text-white" : "text-slate-300"}`}>
-                      {info.label}
+                      {info.shortLabel}
                     </div>
                     <div className={`text-xs mt-0.5 ${selected ? "text-blue-200" : "text-slate-500"}`}>
                       {info.desc}

@@ -1,19 +1,12 @@
 import nodemailer from "nodemailer";
 import { list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { getCV, DEFAULT_CV_PROFILE } from "@/lib/cv-config";
 
 const GMAIL_USER = process.env.GMAIL_USER || "jrabaona@gmail.com";
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/jaona-andriantsimba-rabaonarison-48b773219/";
-
-// ── Profils dynamiques (même mapping que la page scan) ───────────────────────
-const CV_PROFILES: Record<string, { title: string; hook: string }> = {
-  bi:   { title: "Business Intelligence Analyst",           hook: "transformer les données en décisions claires" },
-  ba:   { title: "Business Analyst",                        hook: "traduire les besoins d'affaires en solutions concrètes" },
-  babi: { title: "Analyste BI & Affaires — Profil hybride", hook: "faire le pont entre la donnée et la stratégie" },
-};
-const DEFAULT_PROFILE = { title: "Analyste BI & Affaires", hook: "accompagner vos projets avec rigueur et agilité" };
 
 interface Session {
   mode: "simple" | "reseautage";
@@ -21,6 +14,38 @@ interface Session {
   cvUrl: string;
   eventDescription: string;
   eventDate: string;
+}
+
+// ── Validation & anti-abus ────────────────────────────────────────────────────
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Nettoie une entrée utilisateur : string, sans caractères de contrôle, longueur bornée
+function cleanInput(value: unknown, maxLen: number): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/[\r\n\t\0]/g, " ").trim().slice(0, maxLen);
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Rate limiting en mémoire d'instance — best-effort en serverless (Phase 3 :
+// refuser les abus évidents, pas une protection absolue)
+const hits = new Map<string, number[]>();
+function rateLimited(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (recent.length >= max) {
+    hits.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  hits.set(key, recent);
+  return false;
 }
 
 // ── Créer le transporteur Gmail ──────────────────────────────────────────────
@@ -36,10 +61,25 @@ function createTransporter() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, company, email } = await req.json();
+    const body = await req.json();
+    const name    = cleanInput(body.name, 100);
+    const company = cleanInput(body.company, 100);
+    const email   = cleanInput(body.email, 254).toLowerCase();
+
+    // Quota IP large : en événement, plusieurs personnes partagent l'IP du Wi-Fi du lieu
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "inconnue";
+    if (rateLimited(`ip:${ip}`, 10, 10 * 60_000) || (email && rateLimited(`to:${email}`, 3, 60 * 60_000))) {
+      return NextResponse.json(
+        { error: "Trop de demandes, réessayez dans quelques minutes" },
+        { status: 429 }
+      );
+    }
 
     if (!name || !company || !email) {
       return NextResponse.json({ error: "name, company, email requis" }, { status: 400 });
+    }
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json({ error: "Adresse email invalide" }, { status: 400 });
     }
 
     // ── 1. Lire la session active ────────────────────────────────────────────
@@ -55,12 +95,16 @@ export async function POST(req: NextRequest) {
     const sessionRes = await fetch(latest.url, { cache: "no-store" });
     const session: Session = await sessionRes.json();
     const firstName = name.split(" ")[0];
-    const profile = CV_PROFILES[session.cvType] ?? DEFAULT_PROFILE;
+    const profile = getCV(session.cvType) ?? DEFAULT_CV_PROFILE;
 
     const transporter = createTransporter();
 
     // ── 2. Télécharger le CV pour l'envoyer en pièce jointe ─────────────────
     const cvRes = await fetch(session.cvUrl);
+    if (!cvRes.ok) {
+      console.error("CV introuvable:", session.cvUrl, cvRes.status);
+      return NextResponse.json({ error: "CV indisponible, réessayez plus tard" }, { status: 500 });
+    }
     const cvBuffer = Buffer.from(await cvRes.arrayBuffer());
 
     // ── 3. Email au contact (CV en pièce jointe) ─────────────────────────────
@@ -100,7 +144,7 @@ export async function POST(req: NextRequest) {
 
 function buildContactEmailText({
   firstName, company, session, profile,
-}: { firstName: string; company: string; session: Session; profile: { title: string; hook: string } }) {
+}: { firstName: string; company: string; session: Session; profile: { title: string; mailHook: string } }) {
   const intro = session.mode === "reseautage"
     ? `Suite à notre échange lors de l'évènement ${session.eventDescription} (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
     : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
@@ -109,7 +153,7 @@ function buildContactEmailText({
 
 C'est Jaona. ${intro}
 
-Ma spécialité : ${profile.hook}. Je serais ravi d'explorer comment cela peut apporter de la valeur chez ${company}.
+Ma spécialité : ${profile.mailHook}. Je serais ravi d'explorer comment cela peut apporter de la valeur chez ${company}.
 
 Vous trouverez mon CV en pièce jointe.
 
@@ -123,62 +167,14 @@ Jaona Andriantsimba RABAONARISON
 ${profile.title}`;
 }
 
-// ─── Template email → contact ────────────────────────────────────────────────
-
-function buildContactEmail({
-  firstName, company, session, profile,
-}: { firstName: string; company: string; session: Session; profile: { title: string; hook: string } }) {
-  const intro = session.mode === "reseautage"
-    ? `Suite à notre échange lors de l'évènement <strong>${session.eventDescription}</strong> (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
-    : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
-
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#ffffff;">
-<div style="max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1a1a;font-size:15px;line-height:1.7;">
-
-  <p>Bonjour ${firstName},</p>
-
-  <p>C'est Jaona. ${intro}</p>
-
-  <p>
-    Ma spécialité : <strong>${profile.hook}</strong>.
-    Je serais ravi d'explorer comment cela peut apporter de la valeur chez <strong>${company}</strong>.
-  </p>
-
-  <p>Vous trouverez mon CV en <strong>pièce jointe</strong>.</p>
-
-  <p>
-    N'hésitez pas à me recontacter directement :<br>
-    Email : <a href="mailto:${GMAIL_USER}" style="color:#2563eb;">${GMAIL_USER}</a><br>
-    LinkedIn : <a href="${LINKEDIN_URL}" style="color:#2563eb;">linkedin.com/in/jaona-andriantsimba</a>
-  </p>
-
-  <p>Au plaisir d'échanger !</p>
-
-  <p>
-    Jaona Andriantsimba RABAONARISON<br>
-    <em>${profile.title}</em>
-  </p>
-
-  <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
-  <p style="font-size:11px;color:#9ca3af;">
-    ${session.mode === "reseautage"
-      ? `Vous avez reçu cet email suite au scan du QR Code de Jaona (${session.eventDescription}).`
-      : `Vous avez reçu cet email suite à votre demande de CV auprès de Jaona.`}
-  </p>
-
-</div>
-</body>
-</html>`;
-}
-
 // ─── Template email → notification Jaona ─────────────────────────────────────
 
 function buildNotificationEmail({
-  name, company, email, session,
+  name: rawName, company: rawCompany, email: rawEmail, session,
 }: { name: string; company: string; email: string; session: Session }) {
+  const name    = escapeHtml(rawName);
+  const company = escapeHtml(rawCompany);
+  const email   = escapeHtml(rawEmail);
   return `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"></head>
@@ -190,7 +186,7 @@ function buildNotificationEmail({
     <td style="background:#0f172a;padding:24px 28px;">
       <h1 style="color:#fff;margin:0;font-size:18px;">🤝 Nouveau contact !</h1>
       <p style="color:#64748b;margin:4px 0 0;font-size:12px;">
-        ${session.mode === "reseautage" ? `${session.eventDescription} · ${session.eventDate}` : "Rencontre simple"}
+        ${session.mode === "reseautage" ? `${escapeHtml(session.eventDescription)} · ${escapeHtml(session.eventDate)}` : "Rencontre simple"}
         &nbsp;·&nbsp; CV ${session.cvType.toUpperCase()}
       </p>
     </td>

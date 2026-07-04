@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getCV, DEFAULT_CV_PROFILE } from "@/lib/cv-config";
 
 interface Session {
   mode: "simple" | "reseautage";
@@ -12,14 +13,6 @@ interface Session {
 }
 
 type MainState = "landing" | "form" | "linkedin" | "thankyou";
-
-// ── Profils dynamiques selon le CV sélectionné par Jaona ──────────────────────
-const CV_PROFILES: Record<string, { title: string; hook: string }> = {
-  bi:   { title: "Business Intelligence Analyst",           hook: "Je transforme vos données en décisions claires." },
-  ba:   { title: "Business Analyst",                        hook: "Je traduis vos besoins d'affaires en solutions concrètes." },
-  babi: { title: "Analyste BI & Analyste d'Affaires — Profil hybride", hook: "Je fais le pont entre vos données et votre stratégie, en passant par des solutions technologiques." },
-};
-const DEFAULT_PROFILE = { title: "Analyste BI & Analyste d'Affaires", hook: "6+ ans de consulting international au service de vos projets." };
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/jaona-andriantsimba-rabaonarison-48b773219/";
 
@@ -42,7 +35,7 @@ export default function ScanPage() {
   }, []);
 
   // ── Profil dynamique ────────────────────────────────────────────────────────
-  const profile = CV_PROFILES[session?.cvType ?? ""] ?? DEFAULT_PROFILE;
+  const profile = getCV(session?.cvType) ?? DEFAULT_CV_PROFILE;
 
   // ── Envoi du formulaire ──────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,7 +256,18 @@ export default function ScanPage() {
                   </div>
 
                   {formError && (
-                    <p className="text-red-400 text-sm bg-red-500/10 rounded-lg p-3 text-center">{formError}</p>
+                    <div className="space-y-2">
+                      <p className="text-red-400 text-sm bg-red-500/10 rounded-lg p-3 text-center">{formError}</p>
+                      {session?.cvUrl && (
+                        <button
+                          type="button"
+                          onClick={() => { setPdfOpen(true); setIframeLoading(true); }}
+                          className="w-full py-3 bg-white/8 hover:bg-white/15 text-slate-300 rounded-xl text-sm font-medium transition border border-white/15"
+                        >
+                          👁️ Voir le CV en ligne en attendant
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   <button
@@ -294,6 +298,9 @@ export default function ScanPage() {
                   </p>
                   <p className="text-slate-400 text-sm mt-1">
                     Vérifiez {email}
+                  </p>
+                  <p className="text-slate-500 text-xs mt-2">
+                    Rien reçu d&apos;ici 2 minutes ? Pensez à regarder vos courriers indésirables (spam).
                   </p>
                 </div>
 
@@ -344,7 +351,8 @@ export default function ScanPage() {
                 </motion.div>
                 <h2 className="text-2xl font-bold text-white">Merci {firstName} !</h2>
                 <p className="text-slate-400 text-sm">
-                  Mon CV est en route vers votre boîte mail.<br />
+                  Mon CV est en route vers votre boîte mail
+                  <span className="text-slate-500"> (pensez aux indésirables)</span>.<br />
                   Au plaisir d&apos;échanger avec vous !
                 </p>
                 <p className="text-slate-600 text-xs mt-2">
