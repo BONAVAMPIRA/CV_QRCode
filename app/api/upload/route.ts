@@ -1,5 +1,6 @@
 import { put, list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { checkAdminPassword } from "@/lib/admin-auth";
 
 // GET /api/upload — Statut des 3 CVs
 export async function GET() {
@@ -28,7 +29,11 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file     = formData.get("file") as File | null;
     const type     = formData.get("type") as CVType | null;
+    const password = formData.get("password") as string | null;
 
+    if (!checkAdminPassword(password)) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    }
     if (!file) {
       return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
     }

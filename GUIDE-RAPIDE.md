@@ -23,7 +23,7 @@ Ouvre le fichier **.env.local** avec le Bloc-notes et remplis :
 ## Étape 4 : Tester en local (sans email)
 → Double-clique sur **LANCER.bat**
 → Ouvre http://localhost:3000/admin dans ton navigateur
-→ Mot de passe : `***REMOVED***`
+→ Mot de passe : celui défini dans `.env.local` (variable `ADMIN_PASSWORD`)
 
 ## Étape 5 : Déployer sur Internet (Vercel)
 → Double-clique sur **DEPLOYER-VERCEL.bat**
@@ -45,4 +45,5 @@ Ouvre le fichier **.env.local** avec le Bloc-notes et remplis :
 5. Au réseautage : montre la photo du QR Code !
 
 ## Mot de passe admin :
-`***REMOVED***` (tu peux le changer dans .env.local : ADMIN_PASSWORD)
+Défini uniquement dans `.env.local` (local) et dans Vercel → Settings →
+Environment Variables (`ADMIN_PASSWORD`). Jamais dans le code ni dans ce fichier.

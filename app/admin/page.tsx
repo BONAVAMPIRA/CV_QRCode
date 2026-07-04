@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 
-const ADMIN_PASSWORD = "***REMOVED***";
-
 type CVType = "babi" | "ba" | "bi";
 
 interface CVStatus {
@@ -37,11 +35,20 @@ export default function AdminPage() {
     if (authenticated) loadStatus();
   }, [authenticated, loadStatus]);
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-    } else {
-      alert("Mot de passe incorrect !");
+  const handleLogin = async () => {
+    try {
+      const res = await fetch("/api/admin-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        setAuthenticated(true);
+      } else {
+        alert("Mot de passe incorrect !");
+      }
+    } catch {
+      alert("Erreur de connexion au serveur");
     }
   };
 
@@ -59,6 +66,7 @@ export default function AdminPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("type", type);
+      formData.append("password", password);
 
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error((await res.json()).error);
