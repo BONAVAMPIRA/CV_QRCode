@@ -156,7 +156,7 @@ function ConfigureForm() {
                   className="w-full px-4 py-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:border-blue-500 transition placeholder-slate-600"
                 />
                 <p className="text-slate-600 text-xs mt-1.5 ml-1">
-                  💡 Tel qu&apos;il apparaîtra dans le mail : « lors de [votre texte] »
+                  💡 Tel qu&apos;il apparaîtra dans le mail : lors de l&apos;évènement « [votre texte] »
                 </p>
               </div>
               <div>

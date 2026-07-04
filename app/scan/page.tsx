@@ -19,13 +19,17 @@ const LINKEDIN_URL = "https://www.linkedin.com/in/jaona-andriantsimba-rabaonaris
 export default function ScanPage() {
   const [session, setSession]       = useState<Session | null>(null);
   const [mainState, setMainState]   = useState<MainState>("landing");
-  const [pdfOpen, setPdfOpen]       = useState(false);
+  const [civility, setCivility]     = useState("");
   const [name, setName]             = useState("");
   const [company, setCompany]       = useState("");
   const [email, setEmail]           = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState("");
-  const [iframeLoading, setIframeLoading] = useState(true);
+
+  // Nouvel onglet : le lecteur PDF du téléphone ne casse pas le retour vers cette page
+  const openCv = () => {
+    if (session?.cvUrl) window.open(session.cvUrl, "_blank", "noopener,noreferrer");
+  };
 
   useEffect(() => {
     fetch("/api/config")
@@ -42,13 +46,17 @@ export default function ScanPage() {
     e.preventDefault();
     setSubmitting(true);
     setFormError("");
-    setPdfOpen(false);
 
     try {
       const res = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), company: company.trim(), email: email.trim() }),
+        body: JSON.stringify({
+          civility,
+          name: name.trim(),
+          company: company.trim(),
+          email: email.trim(),
+        }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -62,9 +70,6 @@ export default function ScanPage() {
     }
   };
 
-  // ── URL du viewer PDF ───────────────────────────────────────────────────────
-  const pdfViewerUrl = session?.cvUrl ?? "";
-
   const firstName = name.split(" ")[0] || "vous";
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -74,52 +79,6 @@ export default function ScanPage() {
       {/* Fond animé */}
       <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] bg-blue-600 rounded-full filter blur-3xl opacity-10 animate-blob pointer-events-none" />
       <div className="absolute bottom-[-100px] right-[-100px] w-[400px] h-[400px] bg-purple-600 rounded-full filter blur-3xl opacity-10 animate-blob animation-delay-2000 pointer-events-none" />
-
-      {/* ── MODAL PDF ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {pdfOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex flex-col bg-slate-950"
-          >
-            {/* Barre d'actions fixe en haut */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 flex-shrink-0">
-              <button
-                onClick={() => setPdfOpen(false)}
-                className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm font-medium transition"
-              >
-                ✕ Fermer
-              </button>
-              <button
-                onClick={() => { setPdfOpen(false); setMainState("form"); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition"
-              >
-                📧 Recevoir par mail
-              </button>
-            </div>
-
-            {/* iframe PDF */}
-            <div className="flex-1 relative">
-              {iframeLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-slate-400 text-sm">Chargement du CV...</p>
-                  </div>
-                </div>
-              )}
-              <iframe
-                src={pdfViewerUrl}
-                className="w-full h-full border-none"
-                onLoad={() => setIframeLoading(false)}
-                title="CV Jaona"
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── CONTENU PRINCIPAL ──────────────────────────────────────────────── */}
       <div className="relative z-10 w-full max-w-md">
@@ -190,7 +149,7 @@ export default function ScanPage() {
                     <span>📧</span> Recevoir par email
                   </button>
                   <button
-                    onClick={() => { setPdfOpen(true); setIframeLoading(true); }}
+                    onClick={openCv}
                     disabled={!session?.cvUrl}
                     className="w-full py-4 bg-white/8 hover:bg-white/15 active:scale-95 text-white rounded-2xl font-bold text-base transition-all border border-white/20 disabled:opacity-40 flex items-center justify-center gap-2"
                   >
@@ -225,33 +184,52 @@ export default function ScanPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-1.5">
+                    <label className="text-slate-200 text-base font-medium block mb-2">
                       Votre prénom et nom *
                     </label>
+                    <div className="flex gap-2 mb-2">
+                      {["M.", "Mme"].map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setCivility(civility === c ? "" : c)}
+                          className={`px-5 py-2.5 rounded-xl text-base font-semibold transition border ${
+                            civility === c
+                              ? "bg-blue-600 border-blue-400 text-white"
+                              : "bg-white/10 border-white/15 text-slate-300 hover:bg-white/15"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       type="text" required placeholder="Marie Dupont"
+                      autoComplete="name"
                       value={name} onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/10 text-white border border-white/15 focus:outline-none focus:border-blue-500 transition placeholder-slate-500"
+                      className="w-full px-4 py-4 text-lg rounded-xl bg-white/10 text-white border border-white/15 focus:outline-none focus:border-blue-500 transition placeholder-slate-400"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-1.5">
-                      Votre entreprise *
+                    <label className="text-slate-200 text-base font-medium block mb-2">
+                      Votre entreprise <span className="text-slate-400 font-normal">(optionnel)</span>
                     </label>
                     <input
-                      type="text" required placeholder="Deloitte"
+                      type="text" placeholder="Deloitte"
+                      autoComplete="organization"
                       value={company} onChange={(e) => setCompany(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/10 text-white border border-white/15 focus:outline-none focus:border-blue-500 transition placeholder-slate-500"
+                      className="w-full px-4 py-4 text-lg rounded-xl bg-white/10 text-white border border-white/15 focus:outline-none focus:border-blue-500 transition placeholder-slate-400"
                     />
                   </div>
                   <div>
-                    <label className="text-slate-300 text-sm font-medium block mb-1.5">
+                    <label className="text-slate-200 text-base font-medium block mb-2">
                       Votre email *
                     </label>
                     <input
                       type="email" required placeholder="m.dupont@deloitte.com"
+                      autoComplete="email" inputMode="email"
                       value={email} onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-white/10 text-white border border-white/15 focus:outline-none focus:border-blue-500 transition placeholder-slate-500"
+                      className="w-full px-4 py-4 text-lg rounded-xl bg-white/10 text-white border border-white/15 focus:outline-none focus:border-blue-500 transition placeholder-slate-400"
                     />
                   </div>
 
@@ -261,7 +239,7 @@ export default function ScanPage() {
                       {session?.cvUrl && (
                         <button
                           type="button"
-                          onClick={() => { setPdfOpen(true); setIframeLoading(true); }}
+                          onClick={openCv}
                           className="w-full py-3 bg-white/8 hover:bg-white/15 text-slate-300 rounded-xl text-sm font-medium transition border border-white/15"
                         >
                           👁️ Voir le CV en ligne en attendant

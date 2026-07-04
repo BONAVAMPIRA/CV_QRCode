@@ -63,8 +63,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const name    = cleanInput(body.name, 100);
-    const company = cleanInput(body.company, 100);
+    const company = cleanInput(body.company, 100); // optionnel
     const email   = cleanInput(body.email, 254).toLowerCase();
+    // Civilité optionnelle, whitelist stricte
+    const civility = ["M.", "Mme"].includes(body.civility) ? (body.civility as string) : "";
 
     // Quota IP large : en événement, plusieurs personnes partagent l'IP du Wi-Fi du lieu
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "inconnue";
@@ -75,8 +77,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!name || !company || !email) {
-      return NextResponse.json({ error: "name, company, email requis" }, { status: 400 });
+    if (!name || !email) {
+      return NextResponse.json({ error: "name et email requis" }, { status: 400 });
     }
     if (!EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "Adresse email invalide" }, { status: 400 });
@@ -94,7 +96,11 @@ export async function POST(req: NextRequest) {
 
     const sessionRes = await fetch(latest.url, { cache: "no-store" });
     const session: Session = await sessionRes.json();
+    // « Bonjour Mme Dupont » si civilité fournie (et nom de famille détectable),
+    // sinon « Bonjour Marie » comme avant
     const firstName = name.split(" ")[0];
+    const lastName  = name.split(" ").slice(1).join(" ");
+    const greeting  = civility && lastName ? `${civility} ${lastName}` : firstName;
     const profile = getCV(session.cvType) ?? DEFAULT_CV_PROFILE;
 
     const transporter = createTransporter();
@@ -108,7 +114,7 @@ export async function POST(req: NextRequest) {
     const cvBuffer = Buffer.from(await cvRes.arrayBuffer());
 
     // ── 3. Email au contact (CV en pièce jointe) ─────────────────────────────
-    const contactText = buildContactEmailText({ firstName, company, session, profile });
+    const contactText = buildContactEmailText({ greeting, company, session, profile });
     await transporter.sendMail({
       from:    `Jaona Rabaonarison <${GMAIL_USER}>`,
       to:      email,
@@ -129,8 +135,8 @@ export async function POST(req: NextRequest) {
     await transporter.sendMail({
       from:    `CV QR Code <${GMAIL_USER}>`,
       to:      GMAIL_USER,
-      subject: `🤝 Nouveau contact : ${name} (${company})`,
-      html:    buildNotificationEmail({ name, company, email, session }),
+      subject: `🤝 Nouveau contact : ${name}${company ? ` (${company})` : ""}`,
+      html:    buildNotificationEmail({ name: civility ? `${civility} ${name}` : name, company, email, session }),
     });
 
     return NextResponse.json({ ok: true });
@@ -143,17 +149,21 @@ export async function POST(req: NextRequest) {
 // ─── Version texte brut → contact ────────────────────────────────────────────
 
 function buildContactEmailText({
-  firstName, company, session, profile,
-}: { firstName: string; company: string; session: Session; profile: { title: string; mailHook: string } }) {
+  greeting, company, session, profile,
+}: { greeting: string; company: string; session: Session; profile: { title: string; mailHook: string } }) {
   const intro = session.mode === "reseautage"
-    ? `Suite à notre échange lors de l'évènement ${session.eventDescription} (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
+    ? `Suite à notre échange lors de l'évènement « ${session.eventDescription} » (${session.eventDate}), je me permets de vous faire parvenir mon CV.`
     : `Suite à notre récente rencontre, je me permets de vous faire parvenir mon CV, comme nous en avions discuté.`;
 
-  return `Bonjour ${firstName},
+  const value = company
+    ? `apporter de la valeur chez ${company}`
+    : `apporter de la valeur à vos projets`;
+
+  return `Bonjour ${greeting},
 
 C'est Jaona. ${intro}
 
-Ma spécialité : ${profile.mailHook}. Je serais ravi d'explorer comment cela peut apporter de la valeur chez ${company}.
+Ma spécialité : ${profile.mailHook}. Je serais ravi d'explorer comment cela peut ${value}.
 
 Vous trouverez mon CV en pièce jointe.
 
@@ -173,7 +183,7 @@ function buildNotificationEmail({
   name: rawName, company: rawCompany, email: rawEmail, session,
 }: { name: string; company: string; email: string; session: Session }) {
   const name    = escapeHtml(rawName);
-  const company = escapeHtml(rawCompany);
+  const company = escapeHtml(rawCompany) || "<em>Non précisée</em>";
   const email   = escapeHtml(rawEmail);
   return `<!DOCTYPE html>
 <html lang="fr">
